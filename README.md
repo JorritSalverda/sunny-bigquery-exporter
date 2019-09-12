@@ -3,7 +3,8 @@ This application exports readings from an SMA sunny boy PV inverter into BigQuer
 
 ## ModBus registers for SM SB 4000TL-21
 
-|| Modbus register number || SunSpec-Name || Description / Number code(s) || Type || Access ||
+| Modbus register number | SunSpec-Name | Description / Number code(s) | Type | Access |
+| ---------------------- | ------------ | ---------------------------- | ---- | ------ |
 | 40001 | SID | A well-known value 0x53756e53.  Uniquely identifies this as a SunSpec Modbus Map: 1400204883 | uint32 | RO |
 | 40003 | ID | A well-known value 1.  Uniquely identifies this as a SunSpec Common Model | uint16 | RO |
 | 40004 | L | Well-known # of 16 bit registers to follow : 66 | uint16 | RO |
