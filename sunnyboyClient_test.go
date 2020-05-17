@@ -27,7 +27,6 @@ func TestLogin(t *testing.T) {
 
 		// act
 		success, err := client.Login()
-		// speed := binary.BigEndian.Uint16(results)
 
 		if !assert.Nil(t, err, "failed logging in") {
 			return
