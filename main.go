@@ -84,7 +84,7 @@ func initBigqueryTable(bigqueryClient BigQueryClient) {
 	tableExist := bigqueryClient.CheckIfTableExists(*bigqueryDataset, *bigqueryTable)
 	if !tableExist {
 		log.Debug().Msgf("Creating table %v.%v.%v...", *bigqueryProjectID, *bigqueryDataset, *bigqueryTable)
-		err := bigqueryClient.CreateTable(*bigqueryDataset, *bigqueryTable, BigQueryMeasurement{}, "measured_at", true)
+		err := bigqueryClient.CreateTable(*bigqueryDataset, *bigqueryTable, BigQueryMeasurement{}, "inserted_at", true)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed creating bigquery table")
 		}
