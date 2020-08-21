@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+  labels:
+    {{- include "sunny-bigquery-exporter.labels" . | nindent 4 }}
+data:
+  sunny-host-ip: {{ .Values.config.sunnyHostIP | quote }}
+  sunny-host-port: {{ .Values.config.sunnyHostPort | quote }}
+  sunny-unit-id: {{ .Values.config.sunnyUnitID | quote }}
+  bq-enable: {{ .Values.config.bqEnable | quote }}
+  bq-project-id: {{ .Values.config.bqProjectID | quote }}
+  bq-dataset: {{ .Values.config.bqDataset | quote }}
+  bq-table: {{ .Values.config.bqTable | quote }}

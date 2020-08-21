@@ -15,15 +15,16 @@ type BigQueryClient interface {
 	CreateTable(dataset, table string, typeForSchema interface{}, partitionField string, waitReady bool) error
 	UpdateTableSchema(dataset, table string, typeForSchema interface{}) error
 	DeleteTable(dataset, table string) error
-	InsertMeasurements(dataset, table string, measurements []BigQueryMeasurement) error
+	InsertMeasurement(dataset, table string, measurement BigQueryMeasurement) error
 }
 
 type bigQueryClientImpl struct {
 	client *bigquery.Client
+	enable bool
 }
 
 // NewBigQueryClient returns new BigQueryClient
-func NewBigQueryClient(projectID string) (BigQueryClient, error) {
+func NewBigQueryClient(projectID string, enable bool) (BigQueryClient, error) {
 
 	ctx := context.Background()
 
@@ -34,10 +35,15 @@ func NewBigQueryClient(projectID string) (BigQueryClient, error) {
 
 	return &bigQueryClientImpl{
 		client: bigqueryClient,
+		enable: enable,
 	}, nil
 }
 
 func (bqc *bigQueryClientImpl) CheckIfDatasetExists(dataset string) bool {
+
+	if !bqc.enable {
+		return false
+	}
 
 	ds := bqc.client.Dataset(dataset)
 
@@ -50,6 +56,10 @@ func (bqc *bigQueryClientImpl) CheckIfDatasetExists(dataset string) bool {
 
 func (bqc *bigQueryClientImpl) CheckIfTableExists(dataset, table string) bool {
 
+	if !bqc.enable {
+		return false
+	}
+
 	tbl := bqc.client.Dataset(dataset).Table(table)
 
 	md, _ := tbl.Metadata(context.Background())
@@ -60,6 +70,11 @@ func (bqc *bigQueryClientImpl) CheckIfTableExists(dataset, table string) bool {
 }
 
 func (bqc *bigQueryClientImpl) CreateTable(dataset, table string, typeForSchema interface{}, partitionField string, waitReady bool) error {
+
+	if !bqc.enable {
+		return nil
+	}
+
 	tbl := bqc.client.Dataset(dataset).Table(table)
 
 	// infer the schema of the type
@@ -98,6 +113,11 @@ func (bqc *bigQueryClientImpl) CreateTable(dataset, table string, typeForSchema 
 }
 
 func (bqc *bigQueryClientImpl) UpdateTableSchema(dataset, table string, typeForSchema interface{}) error {
+
+	if !bqc.enable {
+		return nil
+	}
+
 	tbl := bqc.client.Dataset(dataset).Table(table)
 
 	// infer the schema of the type
@@ -122,6 +142,11 @@ func (bqc *bigQueryClientImpl) UpdateTableSchema(dataset, table string, typeForS
 }
 
 func (bqc *bigQueryClientImpl) DeleteTable(dataset, table string) error {
+
+	if !bqc.enable {
+		return nil
+	}
+
 	tbl := bqc.client.Dataset(dataset).Table(table)
 
 	// delete the table
@@ -134,12 +159,17 @@ func (bqc *bigQueryClientImpl) DeleteTable(dataset, table string) error {
 	return nil
 }
 
-func (bqc *bigQueryClientImpl) InsertMeasurements(dataset, table string, measurements []BigQueryMeasurement) error {
+func (bqc *bigQueryClientImpl) InsertMeasurement(dataset, table string, measurement BigQueryMeasurement) error {
+
+	if !bqc.enable {
+		return nil
+	}
+
 	tbl := bqc.client.Dataset(dataset).Table(table)
 
 	u := tbl.Uploader()
 
-	if err := u.Put(context.Background(), measurements); err != nil {
+	if err := u.Put(context.Background(), measurement); err != nil {
 		return err
 	}
 

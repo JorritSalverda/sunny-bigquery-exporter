@@ -1,17 +1,17 @@
 package main
 
 import (
-	stdlog "log"
-	"os"
 	"runtime"
+	"time"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/rs/zerolog"
+	foundation "github.com/estafette/estafette-foundation"
 	"github.com/rs/zerolog/log"
 )
 
 var (
 	// set when building the application
+	appgroup  string
 	app       string
 	version   string
 	branch    string
@@ -20,13 +20,11 @@ var (
 	goVersion = runtime.Version()
 
 	// application specific config
-	sunnyBoyHostIPAddress = kingpin.Flag("sunny-boy-host-ip", "Host ip address of sunny boy").Default("127.0.0.1").OverrideDefaultFromEnvar("SUNNY_BOY_HOST_IP").String()
-	sunnyBoyHostPort      = kingpin.Flag("sunny-boy-host-port", "Host port of sunny boy").Default("9522").OverrideDefaultFromEnvar("SUNNY_BOY_HOST_PORT").Int()
-	sunnyBoyUser          = kingpin.Flag("sunny-boy-user", "Username to log in to sunny boy").Default("User").OverrideDefaultFromEnvar("SUNNY_BOY_USER").String()
-	sunnyBoyPassword      = kingpin.Flag("sunny-boy-password", "Password to log in to sunny boy").Default("0000").OverrideDefaultFromEnvar("SUNNY_BOY_PASSWORD").String()
+	sunnyHostIPAddress = kingpin.Flag("sunny-host-ip", "Host ip address of sunny inverter").Default("127.0.0.1").OverrideDefaultFromEnvar("SUNNY_HOST_IP").String()
+	sunnyHostPort      = kingpin.Flag("sunny-host-port", "Host port of sunny inverter").Default("502").OverrideDefaultFromEnvar("SUNNY_HOST_PORT").Int()
+	sunnyUnitID        = kingpin.Flag("sunny-unit-id", "ModBus unit id of sunny inverter").Default("3").OverrideDefaultFromEnvar("SUNNY_UNIT_ID").Int()
 
-	udpLocalPort = kingpin.Flag("udp-local-port", "Local port used for udp listener").Default("8855").OverrideDefaultFromEnvar("UDP_LOCAL_PORT").Int()
-
+	bigqueryEnable    = kingpin.Flag("bigquery-enable", "Toggle to enable or disable bigquery integration").Default("true").OverrideDefaultFromEnvar("BQ_ENABLE").Bool()
 	bigqueryProjectID = kingpin.Flag("bigquery-project-id", "Google Cloud project id that contains the BigQuery dataset").Envar("BQ_PROJECT_ID").Required().String()
 	bigqueryDataset   = kingpin.Flag("bigquery-dataset", "Name of the BigQuery dataset").Envar("BQ_DATASET").Required().String()
 	bigqueryTable     = kingpin.Flag("bigquery-table", "Name of the BigQuery table").Envar("BQ_TABLE").Required().String()
@@ -37,51 +35,44 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
-	// log as severity for stackdriver logging to recognize the level
-	zerolog.LevelFieldName = "severity"
+	// init log format from envvar ESTAFETTE_LOG_FORMAT
+	foundation.InitLoggingFromEnv(foundation.NewApplicationInfo(appgroup, app, version, branch, revision, buildDate))
 
-	// set some default fields added to all logs
-	log.Logger = zerolog.New(os.Stdout).With().
-		Timestamp().
-		Str("app", app).
-		Str("version", version).
-		Logger()
+	// init bigquery client
+	bigqueryClient, err := NewBigQueryClient(*bigqueryProjectID, *bigqueryEnable)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating bigquery client")
+	}
 
-	// use zerolog for any logs sent via standard log library
-	stdlog.SetFlags(0)
-	stdlog.SetOutput(log.Logger)
+	// init bigquery table if it doesn't exist yet
+	initBigqueryTable(bigqueryClient)
 
-	// log startup message
-	log.Info().
-		Str("branch", branch).
-		Str("revision", revision).
-		Str("buildDate", buildDate).
-		Str("goVersion", goVersion).
-		Msgf("Starting %v version %v...", app, version)
-
-	// bigqueryClient, err := NewBigQueryClient(*bigqueryProjectID)
-	// if err != nil {
-	// 	log.Fatal().Err(err).Msg("Failed creating bigquery client")
-	// }
-	// initBigqueryTable(bigqueryClient)
-
-	client, err := NewSunnyBoyClient(*udpLocalPort, *sunnyBoyHostIPAddress, *sunnyBoyHostPort, *sunnyBoyUser, *sunnyBoyPassword)
+	client, err := NewSunnyBoyClient(*sunnyHostIPAddress, *sunnyHostPort, *sunnyUnitID)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed creating sunny boy client")
 	}
 
-	results, err := client.ReadInputRegisters(8, 1)
+	totalWhOut, err := client.GetTotalWhOut()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed reading input registers")
+		log.Fatal().Err(err).Msg("Failed reading totalWhOut")
 	}
 
-	log.Info().Interface("results", results).Msg("Retrieved results from reading input registers")
+	measurement := BigQueryMeasurement{
+		Readings: []BigQueryInverterReading{
+			{
+				Name:    "Sunny TriPower 8.0",
+				Reading: float64(totalWhOut),
+				Unit:    "Wh",
+			},
+		},
+		InsertedAt: time.Now().UTC(),
+	}
 
-	// log.Debug().Msgf("Inserting measurements into table %v.%v.%v...", *bigqueryProjectID, *bigqueryDataset, *bigqueryTable)
-	// err = bigqueryClient.InsertMeasurements(*bigqueryDataset, *bigqueryTable, measurements)
-	// if err != nil {
-	// 	log.Fatal().Err(err).Msg("Failed inserting measurements into bigquery table")
-	// }
+	err = bigqueryClient.InsertMeasurement(*bigqueryDataset, *bigqueryTable, measurement)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed inserting measurements into bigquery table")
+	}
+	log.Info().Msgf("Stored %v readings, exiting...", len(measurement.Readings))
 
 	// done
 	log.Info().Msg("Finished exporting metrics")

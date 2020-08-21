@@ -1,0 +1,109 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+  labels:
+    {{- include "sunny-bigquery-exporter.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronjob.concurrencyPolicy }}
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 3
+  suspend: false
+  jobTemplate:
+    spec:
+      completions: 1
+      parallelism: 1
+      backoffLimit: 0
+      activeDeadlineSeconds: 240
+      template:
+        metadata:
+          {{- with .Values.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}  
+          labels:
+            {{- include "sunny-bigquery-exporter.labels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "sunny-bigquery-exporter.serviceAccountName" . }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+          - name: {{ .Chart.Name }}
+            securityContext:
+              {{- toYaml .Values.securityContext | nindent 14 }}
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}    
+            env:
+            - name: ESTAFETTE_LOG_FORMAT
+              value: {{ .Values.logFormat }}
+            - name: SUNNY_HOST_IP
+              valueFrom:
+                configMapKeyRef:
+                  key: sunny-host-ip
+                  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+            - name: SUNNY_HOST_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: sunny-host-port
+                  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+            - name: SUNNY_UNIT_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: sunny-unit-id
+                  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+            - name: BQ_ENABLE
+              valueFrom:
+                configMapKeyRef:
+                  key: bq-enable
+                  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+            - name: BQ_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+                  key: bq-project-id
+            - name: BQ_DATASET
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+                  key: bq-dataset
+            - name: BQ_TABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "sunny-bigquery-exporter.fullname" . }}
+                  key: bq-table
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /secrets/keyfile.json
+            resources:
+              {{- toYaml .Values.resources | nindent 14 }}
+            volumeMounts:
+            - name: configs
+              mountPath: /configs
+            - name: secrets
+              mountPath: /secrets
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          terminationGracePeriodSeconds: 300
+          volumes:
+          - name: configs
+            configMap:
+              name: {{ include "sunny-bigquery-exporter.fullname" . }}
+          - name: secrets
+            secret:
+              defaultMode: 420
+              secretName: {{ include "sunny-bigquery-exporter.fullname" . }}

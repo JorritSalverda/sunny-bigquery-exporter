@@ -6,32 +6,57 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLogin(t *testing.T) {
+func TestNewSunnyBoyClient(t *testing.T) {
+	t.Run("ReturnsClientForDefaults", func(t *testing.T) {
 
-	t.Run("ReturnsSuccess", func(t *testing.T) {
+		// act
+		_, err := NewSunnyBoyClient("127.0.0.1", 502, 3)
+
+		assert.Nil(t, err)
+	})
+
+	t.Run("ReturnsErrorIfHostIsEmpty", func(t *testing.T) {
+
+		// act
+		_, err := NewSunnyBoyClient("", 502, 3)
+
+		assert.NotNil(t, err)
+	})
+
+	t.Run("ReturnsErrorIfPortIsNot502OrBetween49152And65535", func(t *testing.T) {
+
+		// act
+		_, err := NewSunnyBoyClient("127.0.0.1", 501, 3)
+
+		assert.NotNil(t, err)
+	})
+
+	t.Run("ReturnsNoErrorIfPortIsBetween49152And65535", func(t *testing.T) {
+
+		// act
+		_, err := NewSunnyBoyClient("127.0.0.1", 49152, 3)
+
+		assert.Nil(t, err)
+	})
+}
+
+func TestGetTotalWhOut(t *testing.T) {
+	t.Run("ReadsTotalPVEnergy", func(t *testing.T) {
 
 		if testing.Short() {
 			t.Skip("skipping test in short mode.")
 		}
 
-		localPort := 8855
-		host := "192.168.178.254"
-		port := 9522
-		user := "User"
-		password := "0000"
-
-		client, err := NewSunnyBoyClient(localPort, host, port, user, password)
-		if !assert.Nil(t, err, "failed creating client") {
+		client, err := NewSunnyBoyClient("192.168.178.88", 502, 3)
+		if !assert.Nil(t, err) {
 			return
 		}
 
-		// act
-		success, err := client.Login()
-
-		if !assert.Nil(t, err, "failed logging in") {
+		totalWhOut, err := client.GetTotalWhOut()
+		if !assert.Nil(t, err) {
 			return
 		}
 
-		assert.True(t, success)
+		assert.True(t, totalWhOut > 13000)
 	})
 }
