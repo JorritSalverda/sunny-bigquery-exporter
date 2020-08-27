@@ -59,5 +59,10 @@ func (c *sunnyBoyClientImpl) GetTotalWhOut() (totalWhOut uint64, err error) {
 
 	totalWhOut = binary.BigEndian.Uint64(totalWhOutBytes)
 
+	// likely max output 50 years times 10,000 kWh * 1000 W in a kW
+	if totalWhOut == 0 || totalWhOut > 50*10000*1000 {
+		return totalWhOut, fmt.Errorf("TotalWhOut out of range at %v", totalWhOut)
+	}
+
 	return
 }
