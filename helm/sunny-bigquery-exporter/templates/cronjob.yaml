@@ -77,6 +77,8 @@ spec:
                 configMapKeyRef:
                   name: {{ include "sunny-bigquery-exporter.fullname" . }}
                   key: bq-table
+            - name: MEASUREMENT_FILE_CONFIG_MAP_NAME
+              value: {{ include "sunny-bigquery-exporter.fullname" . }}
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /secrets/keyfile.json
             resources:
