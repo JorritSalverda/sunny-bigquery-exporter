@@ -14,6 +14,6 @@ require (
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/rs/zerolog v1.17.2
 	github.com/stretchr/testify v1.6.1
-  k8s.io/apimachinery v0.17.0
+	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v0.17.0
 )
