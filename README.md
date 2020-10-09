@@ -1,3 +1,7 @@
+# Note
+
+This application is superseded by [jarvis-modbus-exporter](https://github.com/JorritSalverda/jarvis-modbus-exporter).
+
 ## Installation
 
 To install this application using Helm run the following commands: 
